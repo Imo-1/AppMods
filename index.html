@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ibrahim Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { 'tajawal': ['Tajawal', 'sans-serif'] },
+                    colors: {
+                        store: { 50:'#F0FDFA',100:'#CCFBF1',200:'#99F6E4',300:'#5EEAD4',400:'#2DD4BF',500:'#14B8A6',600:'#0D9488',700:'#0F766E',800:'#115E59',900:'#134E4A' },
+                        gold: { 300:'#FCD34D',400:'#FBBF24',500:'#F59E0B',600:'#D97706' },
+                        dk: { 950:'#070A12',900:'#0B0F19',800:'#111827',700:'#151A2D',600:'#1C2438',500:'#243044',400:'#2E3D56' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        *{font-family:'Tajawal',sans-serif;box-sizing:border-box}
+        body{transition:background-color .35s,color .35s}
+        ::-webkit-scrollbar{width:5px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#0D9488;border-radius:4px}
+        .app-card{transition:transform .28s cubic-bezier(.4,0,.2,1),box-shadow .28s cubic-bezier(.4,0,.2,1),border-color .28s}
+        .app-card:hover{transform:translateY(-5px);box-shadow:0 16px 32px rgba(0,0,0,.12)}
+        .dark .app-card:hover{box-shadow:0 16px 32px rgba(0,0,0,.45)}
+        .modal-overlay{transition:opacity .3s ease}
+        .modal-content{transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s ease}
+        .modal-overlay.active{opacity:1!important;pointer-events:auto!important}
+        .modal-overlay.active .modal-content{transform:scale(1)!important;opacity:1!important}
+        .star-btn{cursor:pointer;transition:transform .15s,color .15s}
+        .star-btn:hover{transform:scale(1.25)}
+        @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .toast-in{animation:slideIn .35s ease forwards}
+        .toast-out{animation:slideOut .3s ease forwards}
+        .spinner{animation:spin .8s linear infinite}
+        .card-enter{animation:fadeUp .4s ease both}
+        .bg-dots{background-image:radial-gradient(circle,rgba(13,148,136,.06) 1px,transparent 1px);background-size:28px 28px}
+        .dark .bg-dots{background-image:radial-gradient(circle,rgba(20,184,166,.04) 1px,transparent 1px)}
+        .gradient-text{background:linear-gradient(135deg,#14B8A6,#0F766E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .theme-t{transition:background-color .3s,color .3s,border-color .3s,box-shadow .3s}
+        input:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px rgba(13,148,136,.18)}
+        .logo-placeholder{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e2e8f0,#cbd5e1);color:#94a3b8;font-size:1.5rem}
+        .dark .logo-placeholder{background:linear-gradient(135deg,#1e293b,#334155);color:#64748b}
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-dk-900 min-h-screen font-tajawal theme-t bg-dots">
+
+    <!-- شاشة عدم الاتصال -->
+    <div id="offlineOverlay" class="fixed inset-0 z-[9999] bg-white dark:bg-dk-900 flex-col items-center justify-center p-6 hidden" style="display:none">
+        <svg width="180" height="180" viewBox="0 0 200 200" fill="none" class="mb-8">
+            <circle cx="100" cy="100" r="88" stroke="#0D9488" stroke-width="3" stroke-dasharray="10 5" fill="none" opacity=".4"/>
+            <circle cx="100" cy="100" r="65" fill="#F0FDFA" stroke="#14B8A6" stroke-width="2"/>
+            <path d="M62 100c0-21 17-38 38-38s38 17 38 38" stroke="#0D9488" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path d="M76 100c0-13 11-24 24-24s24 11 24 24" stroke="#14B8A6" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="4" fill="#0D9488"/>
+            <line x1="55" y1="55" x2="145" y2="145" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">عذرًا، لا يتوفر اتصال بالإنترنت.</h2>
+        <p class="text-gray-500 dark:text-gray-400 text-center text-sm">يرجى التحقق من اتصالك والمحاولة مرة أخرى.</p>
+    </div>
+
+    <!-- شاشة التحميل -->
+    <div id="loadingScreen" class="fixed inset-0 z-[9998] bg-white dark:bg-dk-900 flex flex-col items-center justify-center p-6">
+        <div class="w-14 h-14 border-[3px] border-store-200 border-t-store-600 rounded-full spinner mb-4"></div>
+        <p class="text-gray-500 dark:text-gray-400 font-medium text-sm">جاري تحميل المتجر...</p>
+    </div>
+
+    <!-- المحتوى الرئيسي -->
+    <div id="appContainer" style="display:none">
+
+        <!-- الشريط العلوي -->
+        <header class="sticky top-0 z-50 bg-white/85 dark:bg-dk-800/85 backdrop-blur-2xl border-b border-gray-200/80 dark:border-dk-500/80 theme-t">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16 gap-3">
+                    <div class="flex items-center gap-2.5 flex-shrink-0">
+                        <img src="ɪℬℛᎯℋℐℳ 𝓐𝓛𝓲 Ꭿl-mᎯᎦᏂᏫᏌli.jpg" class="w-9 h-9 rounded-xl shadow-lg shadow-store-600/20 object-cover" alt="Logo">
+                        <span class="text-lg font-extrabold gradient-text hidden sm:inline">Ibrahim Store</span>
+                    </div>
+                    <div class="flex-1 max-w-md">
+                        <div class="relative">
+                            <input type="text" id="searchInput" placeholder="ابحث عن تطبيق أو لعبة..."
+                                class="w-full py-2 px-4 pr-10 rounded-xl border border-gray-200 dark:border-dk-500 bg-gray-50 dark:bg-dk-700 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm theme-t">
+                            <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button id="requestBtn" class="w-9 h-9 rounded-xl hover:bg-gray-100 dark:hover:bg-dk-600 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-colors" title="طلب تطبيق أو لعبة">
+                            <i class="fas fa-paper-plane text-sm"></i>
+                        </button>
+                        <button id="themeToggle" class="w-9 h-9 rounded-xl hover:bg-gray-100 dark:hover:bg-dk-600 text-gray-500 dark:text-gray-400 flex items-center justify-center transition-colors" title="تبديل الوضع">
+                            <i id="themeIcon" class="fas fa-moon text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- تبويبات الأقسام -->
+        <nav class="bg-white dark:bg-dk-800 border-b border-gray-100 dark:border-dk-600 theme-t">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6">
+                <div class="flex gap-1.5 py-2.5">
+                    <button class="tab-btn active px-5 py-2 rounded-lg text-sm font-bold transition-all" data-cat="all">
+                        <i class="fas fa-th-large ml-1.5 text-xs"></i>الكل
+                    </button>
+                    <button class="tab-btn px-5 py-2 rounded-lg text-sm font-bold transition-all" data-cat="app">
+                        <i class="fas fa-mobile-alt ml-1.5 text-xs"></i>التطبيقات
+                    </button>
+                    <button class="tab-btn px-5 py-2 rounded-lg text-sm font-bold transition-all" data-cat="game">
+                        <i class="fas fa-gamepad ml-1.5 text-xs"></i>الألعاب
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- شبكة التطبيقات -->
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+            <div id="resultsInfo" class="mb-3 text-xs text-gray-500 dark:text-gray-400 hidden"></div>
+            <div id="appsGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5"></div>
+            <div id="emptyState" class="hidden flex flex-col items-center justify-center py-24">
+                <div class="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-dk-600 flex items-center justify-center mb-4">
+                    <i class="fas fa-box-open text-3xl text-gray-300 dark:text-gray-500"></i>
+                </div>
+                <p class="text-gray-400 dark:text-gray-500 text-base font-bold" id="emptyText">لا توجد تطبيقات أو ألعاب حالياً</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- نافذة تفاصيل التطبيق -->
+    <div id="appModal" class="modal-overlay fixed inset-0 z-[100] bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white dark:bg-dk-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[88vh] overflow-y-auto transform scale-95 opacity-0 theme-t">
+            <div class="relative p-5 pb-6">
+                <button id="closeAppModal" class="absolute top-4 left-4 w-8 h-8 rounded-full bg-gray-100 dark:bg-dk-500 flex items-center justify-center text-gray-400 hover:bg-gray-200 dark:hover:bg-dk-400 transition-colors z-10">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+                <div class="flex flex-col items-center text-center mb-5 pt-1">
+                    <div class="relative mb-3">
+                        <img id="modalLogo" src="" alt="" class="w-20 h-20 rounded-2xl shadow-lg object-cover bg-gray-100 dark:bg-dk-500" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                        <div class="logo-placeholder w-20 h-20 rounded-2xl shadow-lg" style="display:none"><i class="fas fa-cube"></i></div>
+                    </div>
+                    <h2 id="modalName" class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-1.5"></h2>
+                    <span id="modalType" class="text-[11px] font-bold px-3 py-1 rounded-full"></span>
+                </div>
+                <div class="bg-gray-50 dark:bg-dk-600 rounded-xl p-4 mb-4">
+                    <div class="flex items-center justify-center gap-3 mb-4">
+                        <span id="modalAvgNum" class="text-4xl font-black text-gray-800 dark:text-gray-100 leading-none"></span>
+                        <div>
+                            <div id="modalStarsDisplay" class="flex gap-0.5 mb-1"></div>
+                            <span id="modalRatingCount" class="text-[11px] text-gray-500 dark:text-gray-400"></span>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-200 dark:border-dk-500 pt-3">
+                        <p class="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 text-center">قيّم هذا التطبيق</p>
+                        <div id="userRatingStars" class="flex gap-1.5 justify-center"></div>
+                        <p id="userRatingHint" class="text-[11px] text-gray-400 dark:text-gray-500 text-center mt-1.5 hidden"></p>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">الوصف</h3>
+                    <p id="modalDescription" class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+                </div>
+                <div class="flex items-center gap-2 mb-5 text-xs text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-download text-store-600 text-[10px]"></i>
+                    <span id="modalDownloads"></span>
+                </div>
+                <button id="modalDownloadBtn" class="w-full py-3 rounded-xl bg-gradient-to-l from-store-600 to-store-500 hover:from-store-700 hover:to-store-600 text-white font-bold text-sm shadow-lg shadow-store-500/25 hover:shadow-store-500/40 transition-all active:scale-[0.97]">
+                    <i class="fas fa-download ml-2 text-xs"></i>تحميل
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة الطلب -->
+    <div id="requestModal" class="modal-overlay fixed inset-0 z-[100] bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white dark:bg-dk-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm transform scale-95 opacity-0 theme-t">
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-base font-extrabold text-gray-800 dark:text-gray-100">طلب تطبيق أو لعبة</h2>
+                    <button id="closeRequestModal" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-dk-500 flex items-center justify-center text-gray-400 hover:bg-gray-200 dark:hover:bg-dk-400 transition-colors">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+                <form id="requestForm" class="space-y-4" novalidate>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">الاسم الثلاثي</label>
+                        <input type="text" id="reqName" required class="w-full py-2.5 px-3.5 rounded-xl border border-gray-200 dark:border-dk-500 bg-gray-50 dark:bg-dk-600 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm theme-t" placeholder="أدخل اسمك الثلاثي">
+                        <p id="nameError" class="text-[11px] text-red-500 mt-1 hidden"></p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">نص الطلب</label>
+                        <textarea id="reqText" required rows="3" maxlength="150" class="w-full py-2.5 px-3.5 rounded-xl border border-gray-200 dark:border-dk-500 bg-gray-50 dark:bg-dk-600 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm theme-t resize-none" placeholder="اكتب طلبك هنا..."></textarea>
+                        <div class="flex justify-between items-center mt-1">
+                            <p id="textError" class="text-[11px] text-red-500 hidden"></p>
+                            <span id="charCount" class="text-[11px] text-gray-400 dark:text-gray-500 mr-auto">0 / 150</span>
+                        </div>
+                    </div>
+                    <button type="submit" id="submitReqBtn" class="w-full py-3 rounded-xl bg-gradient-to-l from-store-600 to-store-500 hover:from-store-700 hover:to-store-600 text-white font-bold text-sm shadow-lg shadow-store-500/25 transition-all active:scale-[0.97]">
+                        <i class="fas fa-paper-plane ml-2 text-xs"></i>إرسال الطلب
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- إشعارات -->
+    <div id="toastBox" class="fixed top-20 left-4 z-[200] flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+    (function(){
+        /* ========== إعدادات Firebase ========== */
+        var firebaseConfig = {
+            apiKey:"AIzaSyDWh6X3zX7Du55_qV0g9yMVqfvpLZP60Hg",
+            databaseURL:"https://ibrahim-store-e701d-default-rtdb.firebaseio.com",
+            projectId:"ibrahim-store-e701d",
+            storageBucket:"ibrahim-store-e701d.firebasestorage.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        var db = firebase.database();
+
+        /* ========== متغيرات عامة ========== */
+        var userId = localStorage.getItem('ib_uid');
+        if(!userId){userId='u_'+Date.now()+'_'+Math.random().toString(36).substr(2,8);localStorage.setItem('ib_uid',userId)}
+
+        var allApps={}, allRatings={}, allDownloads={};
+        var currentCat='all', searchQ='', currentAppId=null;
+
+        /* ========== الوضع الليلي / النهاري ========== */
+        if(localStorage.getItem('ib_dark')==='true'){document.documentElement.classList.add('dark')}
+        updateThemeIcon();
+
+        function updateThemeIcon(){
+            var ic=document.getElementById('themeIcon');
+            ic.className=document.documentElement.classList.contains('dark')?'fas fa-sun text-sm':'fas fa-moon text-sm';
+        }
+
+        document.getElementById('themeToggle').addEventListener('click',function(){
+            document.documentElement.classList.toggle('dark');
+            var d=document.documentElement.classList.contains('dark');
+            localStorage.setItem('ib_dark',d.toString());
+            updateThemeIcon();
+        });
+
+        /* ========== كشف الاتصال ========== */
+        var offlineEl=document.getElementById('offlineOverlay');
+        function checkOnline(){
+            if(!navigator.onLine){offlineEl.style.display='flex';offlineEl.classList.remove('hidden')}
+            else{offlineEl.style.display='none'}
+        }
+        window.addEventListener('online',function(){checkOnline();initData()});
+        window.addEventListener('offline',function(){checkOnline()});
+        checkOnline();
+
+        /* ========== تحميل البيانات ========== */
+        var loaded=false;
+        function initData(){
+            db.ref('apps').on('value',function(s){allApps=s.val()||{};render();if(!loaded){loaded=true;showApp()}});
+            db.ref('ratings').on('value',function(s){allRatings=s.val()||{};render();if(currentAppId)refreshModalRating()});
+            db.ref('downloads').on('value',function(s){allDownloads=s.val()||{};render();if(currentAppId)refreshModalDl()});
+            setTimeout(function(){if(!loaded){loaded=true;showApp()}},6000);
+        }
+
+        function showApp(){
+            var ls=document.getElementById('loadingScreen');
+            var ac=document.getElementById('appContainer');
+            ls.style.transition='opacity .35s';ls.style.opacity='0';
+            setTimeout(function(){ls.style.display='none';ac.style.display='block';ac.style.opacity='0';requestAnimationFrame(function(){ac.style.transition='opacity .35s';ac.style.opacity='1'})},350);
+        }
+
+        if(navigator.onLine) initData();
+
+        /* ========== دوال مساعدة ========== */
+        function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+        function trunc(t,n){return t.length<=n?t:t.substr(0,n)+'...'}
+        function fmtDl(c){if(c>=1e6)return(c/1e6).toFixed(1)+'M';if(c>=1e3)return(c/1e3).toFixed(1)+'K';return String(c)}
+        function avgRating(id){
+            var r=allRatings[id];if(!r)return{a:0,n:0};
+            var v=Object.values(r);if(!v.length)return{a:0,n:0};
+            return{a:v.reduce(function(s,x){return s+x},0)/v.length,n:v.length}
+        }
+        function userRating(id){if(!allRatings[id])return 0;return allRatings[id][userId]||0}
+        function starsHTML(r,sz){
+            sz=sz||'text-xs';var h='';
+            for(var i=1;i<=5;i++){
+                if(r>=i)h+='<i class="fas fa-star text-gold-400 '+sz+'"></i>';
+                else if(r>=i-.5)h+='<i class="fas fa-star-half-stroke text-gold-400 '+sz+'"></i>';
+                else h+='<i class="far fa-star text-gray-300 dark:text-gray-600 '+sz+'"></i>';
+            }
+            return h;
+        }
+        var placeholderSvg="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect fill='%23e2e8f0' width='80' height='80' rx='16'/%3E%3Ctext x='40' y='46' text-anchor='middle' fill='%2394a3b8' font-size='24'%3E%3F%3C/text%3E%3C/svg%3E";
+
+        /* ========== عرض البطاقات ========== */
+        function render(){
+            var grid=document.getElementById('appsGrid');
+            var empty=document.getElementById('emptyState');
+            var info=document.getElementById('resultsInfo');
+            var apps=Object.entries(allApps);
+            var filtered=apps;
+
+            if(currentCat!=='all'){filtered=filtered.filter(function(e){return e[1].type===currentCat})}
+            if(searchQ.trim()){
+                var q=searchQ.trim().toLowerCase();
+                filtered=filtered.filter(function(e){
+                    var a=e[1];
+                    return(a.name||'').toLowerCase().indexOf(q)!==-1;
+                });
+            }
+
+            if(searchQ.trim()){info.textContent='نتائج البحث: '+filtered.length+' عنصر';info.classList.remove('hidden')}
+            else{info.classList.add('hidden')}
+
+            if(!filtered.length){
+                grid.innerHTML='';
+                empty.classList.remove('hidden');
+                document.getElementById('emptyText').textContent=searchQ.trim()?'لا توجد نتائج للبحث':'لا توجد تطبيقات أو ألعاب حالياً';
+                return;
+            }
+            empty.classList.add('hidden');
+
+            grid.innerHTML=filtered.map(function(e,idx){
+                var id=e[0],app=e[1];
+                var rat=avgRating(id);
+                var dl=allDownloads[id]||0;
+                var tLbl=app.type==='game'?'لعبة':'تطبيق';
+                var tCls=app.type==='game'?'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/25 dark:text-fuchsia-400':'bg-store-100 text-store-700 dark:bg-store-900/25 dark:text-store-400';
+                var dl_val=Math.max(0,dl);
+                return '<div class="app-card card-enter bg-white dark:bg-dk-700 rounded-xl border border-gray-100 dark:border-dk-500 p-3 flex flex-col items-center text-center cursor-pointer theme-t" style="animation-delay:'+idx*40+'ms" onclick="window._openModal(\''+id+'\')">'+
+                    '<img src="'+esc(app.logoUrl||placeholderSvg)+'" alt="" class="w-16 h-16 rounded-2xl object-cover bg-gray-100 dark:bg-dk-500 mb-2" onerror="this.src=\''+placeholderSvg+'\'">'+
+                    '<h3 class="font-bold text-gray-800 dark:text-gray-100 text-xs truncate w-full leading-tight">'+esc(app.name||'')+'</h3>'+
+                '</div>';
+            }).join('');
+        }
+
+        /* ========== نافذة التفاصيل ========== */
+        window._openModal=function(id){
+            var app=allApps[id];if(!app)return;
+            currentAppId=id;
+            document.getElementById('modalLogo').src=app.logoUrl||placeholderSvg;
+            document.getElementById('modalLogo').style.display='';
+            var lp=document.getElementById('modalLogo').nextElementSibling;
+            if(lp)lp.style.display='none';
+            document.getElementById('modalName').textContent=app.name||'';
+            document.getElementById('modalDescription').textContent=app.description||'';
+            var tLbl=app.type==='game'?'لعبة':'تطبيق';
+            var tCls=app.type==='game'?'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/25 dark:text-fuchsia-400':'bg-store-100 text-store-700 dark:bg-store-900/25 dark:text-store-400';
+            var ts=document.getElementById('modalType');ts.textContent=tLbl;ts.className='text-[11px] font-bold px-3 py-1 rounded-full '+tCls;
+            document.getElementById('modalDownloadBtn').onclick=function(){doDownload(id,app.downloadUrl)};
+            refreshModalRating();refreshModalDl();
+            var m=document.getElementById('appModal');m.classList.add('active');document.body.style.overflow='hidden';
+        };
+
+        function refreshModalRating(){
+            if(!currentAppId)return;
+            var rat=avgRating(currentAppId);var ur=userRating(currentAppId);
+            document.getElementById('modalAvgNum').textContent=rat.a>0?rat.a.toFixed(1):'-';
+            document.getElementById('modalStarsDisplay').innerHTML=starsHTML(rat.a,'text-sm');
+            document.getElementById('modalRatingCount').textContent=rat.n>0?rat.n+' تقييم':'لا تقييمات بعد';
+            buildUserStars(ur);
+        }
+        function refreshModalDl(){
+            if(!currentAppId)return;
+            var dl=Math.max(0,allDownloads[currentAppId]||0);
+            document.getElementById('modalDownloads').textContent=fmtDl(dl)+' تحميل';
+        }
+
+        function buildUserStars(cur){
+            var box=document.getElementById('userRatingStars');
+            var hint=document.getElementById('userRatingHint');
+            box.innerHTML='';
+            var labels=['','سيء','ضعيف','مقبول','جيد','ممتاز'];
+            for(var i=1;i<=5;i++){
+                (function(v){
+                    var s=document.createElement('i');
+                    s.className=(cur>=v?'fas fa-star text-gold-400':'far fa-star text-gray-300 dark:text-gray-600')+' text-2xl star-btn';
+                    s.addEventListener('mouseenter',function(){
+                        var all=box.querySelectorAll('i');
+                        all.forEach(function(x,j){x.className=(j<v?'fas fa-star text-gold-400':'far fa-star text-gray-300 dark:text-gray-600')+' text-2xl star-btn'});
+                        hint.textContent=labels[v];hint.classList.remove('hidden');
+                    });
+                    s.addEventListener('click',function(){doRate(currentAppId,v)});
+                    box.appendChild(s);
+                })(i);
+            }
+            box.addEventListener('mouseleave',function(){
+                var all=box.querySelectorAll('i');
+                all.forEach(function(x,j){x.className=(j<cur?'fas fa-star text-gold-400':'far fa-star text-gray-300 dark:text-gray-600')+' text-2xl star-btn'});
+                if(cur>0){hint.textContent='تقييمك: '+labels[cur];hint.classList.remove('hidden')}
+                else{hint.classList.add('hidden')}
+            });
+            if(cur>0){hint.textContent='تقييمك: '+labels[cur];hint.classList.remove('hidden')}
+            else{hint.classList.add('hidden')}
+        }
+
+        document.getElementById('closeAppModal').addEventListener('click',closeAppModal);
+        document.getElementById('appModal').addEventListener('click',function(e){if(e.target===this)closeAppModal()});
+        function closeAppModal(){
+            var m=document.getElementById('appModal');m.classList.remove('active');document.body.style.overflow='';currentAppId=null;
+        }
+
+        /* ========== نظام التقييمات ========== */
+        function doRate(appId,stars){
+            if(!appId||stars<1||stars>5)return;
+            db.ref('ratings/'+appId+'/'+userId).set(stars).then(function(){toast('تم تسجيل تقييمك بنجاح','success')}).catch(function(){toast('حدث خطأ أثناء التقييم','error')});
+        }
+
+        /* ========== نظام التحميلات ========== */
+        function doDownload(appId,url){
+            if(!url){toast('رابط التحميل غير متوفر','error');return}
+            db.ref('downloads/'+appId).transaction(function(c){return(c||0)+1});
+            var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+            document.body.appendChild(a);a.click();document.body.removeChild(a);
+            toast('جاري التحميل...','success');
+        }
+
+        /* ========== البحث ========== */
+        var searchTimer=null;
+        document.getElementById('searchInput').addEventListener('input',function(e){
+            clearTimeout(searchTimer);
+            searchTimer=setTimeout(function(){searchQ=e.target.value;render()},120);
+        });
+
+        /* ========== تبويبات الأقسام ========== */
+        var tabBtns=document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(function(btn){
+            btn.addEventListener('click',function(){
+                tabBtns.forEach(function(b){
+                    b.classList.remove('active','bg-store-50','dark:bg-dk-600','text-store-700','dark:text-store-400');
+                    b.classList.add('text-gray-500','dark:text-gray-400','hover:bg-gray-100','dark:hover:bg-dk-600');
+                });
+                this.classList.add('active','bg-store-50','dark:bg-dk-600','text-store-700','dark:text-store-400');
+                this.classList.remove('text-gray-500','dark:text-gray-400');
+                currentCat=this.dataset.cat;render();
+            });
+        });
+        // تهيئة التبويب النشط
+        tabBtns.forEach(function(b){
+            if(b.classList.contains('active')){
+                b.classList.add('bg-store-50','dark:bg-dk-600','text-store-700','dark:text-store-400');
+            }else{
+                b.classList.add('text-gray-500','dark:text-gray-400');
+            }
+        });
+
+        /* ========== نافذة الطلب ========== */
+        document.getElementById('requestBtn').addEventListener('click',function(){
+            var m=document.getElementById('requestModal');m.classList.add('active');document.body.style.overflow='hidden';
+        });
+        document.getElementById('closeRequestModal').addEventListener('click',closeReqModal);
+        document.getElementById('requestModal').addEventListener('click',function(e){if(e.target===this)closeReqModal()});
+        function closeReqModal(){
+            var m=document.getElementById('requestModal');m.classList.remove('active');document.body.style.overflow='';
+        }
+
+        document.getElementById('reqText').addEventListener('input',function(){
+            var c=this.value.length;
+            var cc=document.getElementById('charCount');
+            cc.textContent=c+' / 150';
+            cc.classList.toggle('text-red-500',c>150);
+        });
+
+        document.getElementById('requestForm').addEventListener('submit',function(e){
+            e.preventDefault();
+            var name=document.getElementById('reqName').value.trim();
+            var text=document.getElementById('reqText').value.trim();
+            var nErr=document.getElementById('nameError');
+            var tErr=document.getElementById('textError');
+            nErr.classList.add('hidden');tErr.classList.add('hidden');
+
+            var parts=name.split(/\s+/).filter(function(p){return p.length>0});
+            if(parts.length<3){nErr.textContent='يرجى إدخال الاسم الثلاثي (ثلاثة أجزاء على الأقل)';nErr.classList.remove('hidden');return}
+            if(!text){tErr.textContent='يرجى إدخال نص الطلب';tErr.classList.remove('hidden');return}
+            if(text.length>150){tErr.textContent='تجاوز النص الحد المسموح (150 حرف)';tErr.classList.remove('hidden');return}
+            var allowed=/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z0-9\s\-.,!?؟،()@#_%&*+/:;"']*$/;
+            if(!allowed.test(text)){tErr.textContent='يحتوي النص على أحرف غير مسموح بها';tErr.classList.remove('hidden');return}
+
+            var btn=document.getElementById('submitReqBtn');
+            btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin ml-2 text-xs"></i>جاري الإرسال...';
+
+            db.ref('requests').push({fullName:name,text:text,timestamp:firebase.database.ServerValue.TIMESTAMP}).then(function(){
+                toast('تم إرسال طلبك بنجاح','success');
+                document.getElementById('requestForm').reset();
+                document.getElementById('charCount').textContent='0 / 150';
+                closeReqModal();
+                btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane ml-2 text-xs"></i>إرسال الطلب';
+            }).catch(function(){
+                toast('حدث خطأ أثناء الإرسال','error');
+                btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane ml-2 text-xs"></i>إرسال الطلب';
+            });
+        });
+
+        /* ========== الإشعارات ========== */
+        function toast(msg,type){
+            var box=document.getElementById('toastBox');
+            var t=document.createElement('div');
+            var bg=type==='success'?'bg-store-600':type==='error'?'bg-red-500':'bg-gray-700';
+            var ic=type==='success'?'fa-check-circle':type==='error'?'fa-exclamation-circle':'fa-info-circle';
+            t.className=bg+' text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-sm font-medium toast-in pointer-events-auto';
+            t.innerHTML='<i class="fas '+ic+' text-xs"></i><span>'+msg+'</span>';
+            box.appendChild(t);
+            setTimeout(function(){t.classList.remove('toast-in');t.classList.add('toast-out');setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t)},300)},3000);
+        }
+
+    })();
+    </script>
+</body>
+</html>
